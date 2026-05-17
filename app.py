@@ -5,6 +5,7 @@ warnings.filterwarnings("ignore")
 import streamlit as st
 from dotenv import load_dotenv
 from agent import classify_customer
+import hashlib
 
 load_dotenv()
 
@@ -92,6 +93,11 @@ with st.sidebar:
         st.metric("🔴 Churns", churns)
     with col_b:
         st.metric("🟢 Stays", stays)
+
+    st.markdown("---")
+    st.markdown("### 📈 Caching Status")
+    st.success("📄 Predictions cached (1 hour TTL)")
+    st.caption("Same predictions use cache to prevent rate limits")
 
     st.markdown("---")
     st.caption("COMSATS University · Spring 2026")
@@ -242,6 +248,8 @@ I'm powered by **Groq Llama 3.3 70B** with **3 ML models** ready:
 > *"45-year-old female from Germany, credit score 650, balance 130000, not active member..."*
 
 I'll reason about which model fits best and explain the prediction! 🎯
+
+**📄 Note:** Predictions are cached to prevent rate limits. Same requests will be instant!
         """)
 
 # Display existing messages
@@ -251,18 +259,27 @@ for msg in st.session_state.messages:
 
 
 # ── Helper to Run Agent & Display Result ──────────────────────────────
+@st.cache_data(ttl=3600)
+def get_cached_prediction(prompt_hash: str, prompt: str):
+    """Cache predictions to avoid rate limits. TTL = 1 hour"""
+    return classify_customer(prompt)
+
+
 def run_agent_and_display(prompt: str):
     """Runs agent and displays result in chat."""
+
+    # Create hash of prompt for caching
+    prompt_hash = hashlib.md5(prompt.encode()).hexdigest()
 
     # Show user message
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # Run agent and show result
+    # Run agent and show result (CACHED if same prompt)
     with st.chat_message("assistant"):
         with st.spinner("🧠 Agent is reasoning... please wait"):
-            result = classify_customer(prompt)
+            result = get_cached_prediction(prompt_hash, prompt)
 
         # Show reasoning trace
         if result["steps"]:
