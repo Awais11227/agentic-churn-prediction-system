@@ -55,13 +55,13 @@ Your job:
 Customer Description:
 {user_query}
 
-IMPORTANT: Structure your response EXACTLY like this (use these exact labels):
-🎯 PREDICTION: [CHURN or STAY]
-📊 CONFIDENCE: [percentage]
-🤖 MODEL_USED: [model name]
-💡 WHY_CHOSEN: [brief reason - 1 line]
-🔑 KEY_FACTORS: [factor1, factor2, factor3]
-🏦 RECOMMENDATION: [what the bank should do]
+After calling the model, provide analysis in this format:
+PREDICTION: [CHURN or STAY]
+CONFIDENCE: [the confidence percentage from model]
+MODEL USED: [name of model you chose]
+WHY THIS MODEL: [brief explanation]
+KEY FACTORS: [list the main factors that led to this prediction]
+RECOMMENDATION: [what the bank should do]
 """
 
     # ── Run the graph ─────────────────────────────────────────────────
@@ -94,7 +94,7 @@ IMPORTANT: Structure your response EXACTLY like this (use these exact labels):
 
     # ── Parse structured output ────────────────────────────────────────
     def parse_output(text):
-        """Extract structured data from LLM response."""
+        """Extract structured data from LLM response with flexible parsing."""
         data = {
             "prediction": "N/A",
             "confidence": "N/A",
@@ -105,21 +105,51 @@ IMPORTANT: Structure your response EXACTLY like this (use these exact labels):
             "raw": text
         }
         
+        text_upper = text.upper()
         lines = text.split('\n')
+        
         for line in lines:
-            if "PREDICTION:" in line:
-                data["prediction"] = line.split("PREDICTION:")[-1].strip()
-            elif "CONFIDENCE:" in line:
-                data["confidence"] = line.split("CONFIDENCE:")[-1].strip()
-            elif "MODEL_USED:" in line:
-                data["model_used"] = line.split("MODEL_USED:")[-1].strip()
-            elif "WHY_CHOSEN:" in line:
-                data["why_chosen"] = line.split("WHY_CHOSEN:")[-1].strip()
-            elif "KEY_FACTORS:" in line:
-                factors = line.split("KEY_FACTORS:")[-1].strip()
-                data["key_factors"] = [f.strip() for f in factors.split(',')]
-            elif "RECOMMENDATION:" in line:
-                data["recommendation"] = line.split("RECOMMENDATION:")[-1].strip()
+            line_upper = line.upper()
+            
+            # Parse prediction (look for CHURN or STAY)
+            if "PREDICTION" in line_upper or "PREDICT" in line_upper:
+                if "CHURN" in line_upper:
+                    data["prediction"] = "CHURN"
+                elif "STAY" in line_upper:
+                    data["prediction"] = "STAY"
+                else:
+                    data["prediction"] = line.split(":")[-1].strip() if ":" in line else "N/A"
+            
+            # Parse confidence
+            if "CONFIDENCE" in line_upper:
+                data["confidence"] = line.split(":")[-1].strip() if ":" in line else "N/A"
+            
+            # Parse model used
+            if "MODEL" in line_upper and "USED" in line_upper:
+                data["model_used"] = line.split(":")[-1].strip() if ":" in line else "N/A"
+            elif "MODEL" in line_upper and ("SVM" in line_upper or "TREE" in line_upper or "NETWORK" in line_upper or "NEURAL" in line_upper):
+                data["model_used"] = line.split(":")[-1].strip() if ":" in line else "N/A"
+            
+            # Parse why chosen
+            if "WHY" in line_upper or "REASON" in line_upper:
+                data["why_chosen"] = line.split(":")[-1].strip() if ":" in line else "N/A"
+            
+            # Parse key factors
+            if "FACTOR" in line_upper or "DROVE" in line_upper or "INFLUENCED" in line_upper:
+                if ":" in line:
+                    factors_str = line.split(":")[-1].strip()
+                    data["key_factors"] = [f.strip() for f in factors_str.split(',') if f.strip()]
+            
+            # Parse recommendation
+            if "RECOMMENDATION" in line_upper or "RECOMMEND" in line_upper:
+                data["recommendation"] = line.split(":")[-1].strip() if ":" in line else "N/A"
+        
+        # If no prediction found but text contains CHURN/STAY
+        if data["prediction"] == "N/A":
+            if "CHURN" in text_upper:
+                data["prediction"] = "CHURN"
+            elif "STAY" in text_upper:
+                data["prediction"] = "STAY"
         
         return data
 
