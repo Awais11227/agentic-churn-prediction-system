@@ -6,14 +6,23 @@ from utils.preprocessing import preprocess_single_input
 
 # ── 1. Load All Saved Models ──────────────────────────────────────────
 print("📦 Loading models...")
-svm_bundle = joblib.load("models/svm_model.pkl")
-dt_bundle  = joblib.load("models/dt_model.pkl")
-nn_bundle  = joblib.load("models/nn_model.pkl")
-print("✅ All models loaded!")
+try:
+    svm_bundle = joblib.load("models/svm_model.pkl")
+    dt_bundle  = joblib.load("models/dt_model.pkl")
+    nn_bundle  = joblib.load("models/nn_model.pkl")
+    print("✅ All models loaded!")
+except FileNotFoundError as e:
+    print(f"❌ Error loading models: {e}")
+    print("⚠️  Models not found. Please ensure model files exist in the models/ directory")
+    svm_bundle = None
+    dt_bundle = None
+    nn_bundle = None
 
 
 # ── 2. Helper Function ────────────────────────────────────────────────
 def _infer(bundle: dict, raw_input: dict) -> str:
+    if bundle is None:
+        return "❌ Error: Model not loaded. Models missing on server."
     try:
         scaler = bundle["scaler"]
         model  = bundle["model"]
